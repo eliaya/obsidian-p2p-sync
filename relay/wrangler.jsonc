@@ -1,0 +1,28 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "peer-vault-relay",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-11-15",
+	"observability": { "enabled": true },
+	"assets": {
+		"directory": "public",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": ["/api/*", "/room/*", "/mailbox/*", "/turn/*", "/health"]
+	},
+	"durable_objects": {
+		"bindings": [{ "name": "ROOM", "class_name": "Room" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "peer-vault-relay",
+			// Placeholder: the setup script writes the real id.
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [{ "binding": "MAILBOX", "bucket_name": "peer-vault-mailbox" }],
+	"triggers": { "crons": ["0 3 * * *"] },
+	"secrets": { "required": ["DB_ENC_KEY", "ADMIN_TOKEN_HASH"] }
+}

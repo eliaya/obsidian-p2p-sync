@@ -1,0 +1,135 @@
+/* Peer Vault Sync. Obsidian CSS variables only, except the QR code, which needs fixed contrast. */
+.pvs-muted {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.pvs-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
+}
+.pvs-error:empty {
+	display: none;
+}
+.pvs-warning {
+	color: var(--text-warning);
+	font-weight: var(--font-semibold);
+}
+.pvs-fingerprint,
+.pvs-code {
+	font-family: var(--font-monospace);
+	user-select: text;
+	word-break: break-all;
+}
+.pvs-fingerprint {
+	margin-top: var(--size-4-1);
+	color: var(--text-normal);
+	letter-spacing: 0.05em;
+}
+.pvs-code {
+	display: block;
+	padding: var(--size-4-2);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+}
+.pvs-qr-wrap {
+	display: flex;
+	justify-content: center;
+	margin: var(--size-4-3) 0;
+}
+.pvs-qr {
+	width: min(280px, 100%);
+	height: auto;
+	shape-rendering: crispEdges;
+}
+.pvs-errors {
+	margin: 0;
+	padding-left: var(--size-4-5);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	user-select: text;
+}
+.pvs-statusbar {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+.pvs-statusbar-icon {
+	display: inline-flex;
+}
+.pvs-statusbar-icon svg {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+/* History */
+.pvs-history-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	max-height: 40vh;
+	overflow-y: auto;
+	margin-bottom: var(--size-4-3);
+}
+.pvs-history-row {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--size-2-1);
+	height: auto;
+	min-height: var(--input-height);
+	padding: var(--size-4-2) var(--size-4-3);
+	text-align: left;
+	white-space: normal;
+}
+.pvs-history-row.is-selected {
+	background: var(--background-modifier-active-hover);
+	box-shadow: inset 3px 0 0 var(--interactive-accent);
+}
+.pvs-history-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.pvs-badge {
+	padding: 0 var(--size-4-1);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.pvs-badge.mod-warning {
+	color: var(--text-warning);
+}
+.pvs-diff {
+	max-height: 45vh;
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+	margin-top: var(--size-4-2);
+	padding: var(--size-4-2);
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	user-select: text;
+}
+.pvs-diff-line {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+.pvs-diff-add {
+	background: rgba(var(--color-green-rgb), 0.15);
+}
+.pvs-diff-del {
+	background: rgba(var(--color-red-rgb), 0.15);
+}
+.pvs-diff-skip {
+	color: var(--text-faint);
+	font-style: italic;
+	padding: var(--size-2-1) 0;
+}
+.is-mobile .pvs-history-row,
+.is-mobile .pvs-modal button {
+	min-height: 44px;
+}
