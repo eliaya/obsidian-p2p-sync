@@ -334,6 +334,10 @@ interface Link {
 	state: LinkState;
 	/** Our ICE candidates held until the offer/answer that precedes them has been sent. */
 	outbox: RTCIceCandidateInit[] | null;
+	dc: DataChannelLike | null;
+	/** When the link was created, and since when its connection has been 'disconnected'. */
+	since: number;
+	disconnectedAt: number | null;
 }
 
 const DEFAULT_ICE: RTCIceServer[] = [{ urls: 'stun:stun.cloudflare.com:3478' }];
@@ -342,6 +346,14 @@ const TURN_RECHECK = 3600 * 1000; // with TURN off, ask again hourly in case an 
 
 const BACKOFF_MIN = 1000;
 const BACKOFF_MAX = 60_000;
+// Links are also checked on a timer: a locally closed connection fires no event (WebRTC spec), and a
+// connection that never gets a candidate pair stays 'new' forever instead of failing.
+export const LINK_CHECK = 5000;
+// Measured in Chromium: the data channel opens 20-80 ms after the offer on one host. ICE over STUN/TURN on
+// real networks usually takes seconds, so 20 s is a wide margin; a link that never connects is retried with backoff.
+export const CONNECT_TIMEOUT = 20_000;
+// Chromium turns 'disconnected' into 'failed' ~10 s later by itself (measured); this is a backstop for engines that do not.
+export const DISCONNECT_GRACE = 30_000;
 
 export class PeerManager {
 	private links_ = new Map<string, Link>();
@@ -354,6 +366,7 @@ export class PeerManager {
 	private starting = new Set<string>(); // initiations waiting for ICE servers
 	private ice: { servers: RTCIceServer[]; until: number } | null = null;
 	private iceFetch: Promise<RTCIceServer[]> | null = null;
+	private relinkDelay = new Map<string, number>(); // per-peer backoff for rebuilding a lost link
 
 	/** Takes over engine.onRevisions and engine.onSession (any handler already set there is still called). */
 	constructor(private o: PeerManagerOptions) {
@@ -379,6 +392,7 @@ export class PeerManager {
 		if (this.running) return;
 		this.running = true;
 		void this.connectRelay();
+		this.later(LINK_CHECK, () => this.checkLinks());
 	}
 
 	stop(): void {
@@ -395,7 +409,8 @@ export class PeerManager {
 
 	/** Current links, for the mailbox (who is reachable right now) and the UI. */
 	links(): ReadonlyMap<string, LinkState> {
-		return new Map([...this.links_].map(([p, l]) => [p, l.state]));
+		// A closed connection is not a link even before checkLinks notices: the mailbox must not count on it.
+		return new Map([...this.links_].filter(([, l]) => l.pc.connectionState !== 'closed' && l.pc.connectionState !== 'failed').map(([p, l]) => [p, l.state]));
 	}
 
 	/** Starts a new sync round on every open link, e.g. after a local change. */
@@ -505,7 +520,7 @@ export class PeerManager {
 
 	private newLink(p: string, sid: string, iceServers: RTCIceServer[]): Link {
 		const pc = new this.o.RTCPeerConnection({ iceServers });
-		const link: Link = { sid, pc, pipe: null, state: 'connecting', outbox: [] };
+		const link: Link = { sid, pc, pipe: null, state: 'connecting', outbox: [], dc: null, since: Date.now(), disconnectedAt: null };
 		pc.onicecandidate = (ev) => {
 			if (!ev.candidate) return;
 			const c = ev.candidate.toJSON();
@@ -514,11 +529,9 @@ export class PeerManager {
 		};
 		pc.onconnectionstatechange = () => {
 			if (this.links_.get(p) !== link) return;
-			if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-				this.drop(p);
-				// The initiator tries again while the peer is still in the room.
-				if (this.o.selfId < p) this.later(this.backoff, () => this.present.has(p) && this.seen(p));
-			}
+			const s = pc.connectionState;
+			link.disconnectedAt = s === 'disconnected' ? (link.disconnectedAt ?? Date.now()) : null;
+			if (s === 'failed' || s === 'closed') this.lost(p, link);
 		};
 		this.links_.set(p, link);
 		this.o.onPeer?.(p, 'connecting');
@@ -532,10 +545,13 @@ export class PeerManager {
 	}
 
 	private wire(p: string, link: Link, dc: DataChannelLike) {
+		link.dc = dc;
 		const open = () => {
 			if (this.links_.get(p) !== link) return dc.close();
+			this.relinkDelay.delete(p);
 			link.pipe = new DataChannelPipe(dc);
-			dc.addEventListener('close', () => this.links_.get(p) === link && this.drop(p));
+			// Often the first sign of a dead link, before (or instead of) a connection state change.
+			dc.addEventListener('close', () => this.lost(p, link));
 			this.syncLink(p, link);
 		};
 		if (dc.readyState === 'open') open();
@@ -591,6 +607,33 @@ export class PeerManager {
 		} catch {
 			// a bad candidate is not fatal; a bad answer ends in connectionState 'failed'
 		}
+	}
+
+	/** The link died while the peer may still be in the room: drop it; the initiator builds a new one. */
+	private lost(p: string, link: Link) {
+		if (this.links_.get(p) !== link) return;
+		this.drop(p);
+		if (!(this.o.selfId < p)) return; // the other side offers again
+		const ms = this.relinkDelay.get(p) ?? BACKOFF_MIN;
+		this.relinkDelay.set(p, Math.min(ms * 2, BACKOFF_MAX));
+		this.later(ms, () => this.present.has(p) && this.seen(p));
+	}
+
+	/** Catches what no event reports: a locally closed connection, one that never connects, a lasting 'disconnected'. */
+	private checkLinks() {
+		const now = Date.now();
+		for (const [p, l] of [...this.links_]) {
+			const s = l.pc.connectionState;
+			if (
+				s === 'closed' ||
+				s === 'failed' ||
+				l.dc?.readyState === 'closed' ||
+				(!l.pipe && now - l.since > CONNECT_TIMEOUT) ||
+				(l.disconnectedAt !== null && now - l.disconnectedAt > DISCONNECT_GRACE)
+			)
+				this.lost(p, l);
+		}
+		this.later(LINK_CHECK, () => this.checkLinks());
 	}
 
 	private drop(p: string) {

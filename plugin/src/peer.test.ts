@@ -1,11 +1,14 @@
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { deriveKeys, fromBase64Url, generateIdentity, generateVaultKey, sha256Hex } from './crypto';
 import {
+	CONNECT_TIMEOUT,
+	DISCONNECT_GRACE,
 	type DataChannelLike,
 	DataChannelPipe,
 	decodeMsg,
 	encodeMsg,
 	HIGH_WATER,
+	LINK_CHECK,
 	type LinkState,
 	MAX_FRAME,
 	type PeerConnectionCtor,
@@ -252,6 +255,8 @@ class FakePC {
 	offered = false;
 	candidates: RTCIceCandidateInit[] = [];
 	remote: FakePC | null = null;
+	createdAt = Date.now();
+	closedAt: number | null = null;
 	constructor(
 		public owner: string,
 		public log: FakePC[],
@@ -293,6 +298,7 @@ class FakePC {
 	}
 	close() {
 		this.connectionState = 'closed';
+		this.closedAt ??= Date.now();
 		this.dc?.close();
 	}
 }
@@ -445,6 +451,103 @@ describe('PeerManager', () => {
 		await expectSame(a, b, c);
 		allSynced([a, b, c], pairs);
 		for (const n of [a, b, c]) n.mgr.stop();
+	});
+});
+
+describe('PeerManager link loss', () => {
+	afterEach(() => vi.useRealTimers());
+
+	async function linked() {
+		const r = await roomSetup();
+		const x = await r.peer('x');
+		const y = await r.peer('y');
+		const [lo, hi] = x.peerId < y.peerId ? [x, y] : [y, x];
+		lo.mgr.start();
+		hi.mgr.start();
+		await vi.waitFor(() => allSynced([lo, hi], [[lo, hi]]));
+		const pc = r.pcs.find((p) => p.offered)!; // the initiator's (lo's) connection
+		return { ...r, lo, hi, pc, other: pc.remote! };
+	}
+	// Linked again over a new connection pair, and a change still gets through.
+	async function relinked(t: Awaited<ReturnType<typeof linked>>) {
+		const { lo, hi, pcs } = t;
+		await vi.waitFor(
+			() => {
+				expect(pcs.length).toBeGreaterThanOrEqual(4);
+				allSynced([lo, hi], [[lo, hi]]);
+			},
+			{ timeout: 3000 },
+		);
+		await put(hi, 'after.md', 'after');
+		hi.mgr.syncNow();
+		await vi.waitFor(() => expect(dec(lo.vault.files.get('after.md'))).toBe('after'));
+		expect(t.room.sockets.size).toBe(2); // nobody left or rejoined the room
+		lo.mgr.stop();
+		hi.mgr.stop();
+	}
+
+	test('data channel closes before the connection state changes: both drop, the initiator relinks', async () => {
+		const t = await linked();
+		t.pc.dc!.close(); // closes both ends, as an SCTP abort does
+		for (const pc of [t.pc, t.other]) {
+			pc.connectionState = 'failed'; // ICE gives up afterwards
+			pc.onconnectionstatechange?.();
+		}
+		expect(t.lo.mgr.links().has(t.hi.peerId)).toBe(false);
+		expect(t.hi.mgr.links().has(t.lo.peerId)).toBe(false);
+		await relinked(t);
+	});
+
+	test.each(['initiator', 'answerer'] as const)('the %s closes its connection locally (no events there): found by the link check, rebuilt', async (side) => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		const t = await linked();
+		const [closer, closerPc, closerDc, otherDc] = side === 'initiator' ? [t.lo, t.pc, t.pc.dc!, t.pc.dc!.peer!] : [t.hi, t.other, t.pc.dc!.peer!, t.pc.dc!];
+		// RTCPeerConnection.close(): state changes, but no connectionstatechange and no channel close event locally.
+		closerPc.connectionState = 'closed';
+		closerDc.readyState = 'closed';
+		otherDc.close(); // the far end sees the channel go
+		const peer = closer === t.lo ? t.hi.peerId : t.lo.peerId;
+		expect(closer.mgr.links().has(peer)).toBe(false); // the mailbox never counts on a dead link
+		await vi.advanceTimersByTimeAsync(LINK_CHECK + 1000);
+		await relinked(t);
+	});
+
+	test('a connection stuck in disconnected is given up after DISCONNECT_GRACE and rebuilt', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		const t = await linked();
+		for (const pc of [t.pc, t.other]) {
+			pc.connectionState = 'disconnected'; // and it never moves on to 'failed'
+			pc.onconnectionstatechange?.();
+		}
+		await vi.advanceTimersByTimeAsync(DISCONNECT_GRACE - LINK_CHECK);
+		expect(t.pcs).toHaveLength(2); // still waiting for ICE to recover
+		await vi.advanceTimersByTimeAsync(2 * LINK_CHECK + 1000);
+		await relinked(t);
+	});
+
+	test('a link that never connects is closed after CONNECT_TIMEOUT and retried with growing delay', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		const { room, pcs, peer } = await roomSetup();
+		const x = await peer('x');
+		const y = await peer('y');
+		const [lo, hi] = x.peerId < y.peerId ? [x, y] : [y, x];
+		room.block(lo.peerId, hi.peerId); // no answer ever arrives
+		lo.mgr.start();
+		hi.mgr.start();
+		await vi.waitFor(() => expect(lo.mgr.links().get(hi.peerId)).toBe('connecting'));
+		const mine = () => pcs.filter((p) => p.owner === lo.label);
+		await vi.advanceTimersByTimeAsync(3 * (CONNECT_TIMEOUT + LINK_CHECK) + 7000);
+		const [a, b, c, d] = mine();
+		expect(lo.events).toContainEqual([hi.peerId, 'gone']);
+		for (const pc of [a!, b!, c!]) {
+			const life = pc.closedAt! - pc.createdAt;
+			expect(life).toBeGreaterThan(CONNECT_TIMEOUT);
+			expect(life).toBeLessThanOrEqual(CONNECT_TIMEOUT + LINK_CHECK);
+		}
+		// Retry delays double: 1 s, 2 s, 4 s.
+		expect([b!.createdAt - a!.closedAt!, c!.createdAt - b!.closedAt!, d!.createdAt - c!.closedAt!]).toEqual([1000, 2000, 4000]);
+		lo.mgr.stop();
+		hi.mgr.stop();
 	});
 });
 
