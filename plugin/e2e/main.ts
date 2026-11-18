@@ -94,6 +94,7 @@ class MemAdapter implements ScanAdapter {
 		await this.persist(path, null);
 	}
 	async mkdir() {}
+	async rmdir() {}
 	async exists(path: string) {
 		return this.files.has(path);
 	}

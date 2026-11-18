@@ -2,7 +2,7 @@ import type { DataAdapter } from 'obsidian';
 import type { Store, VaultIO } from './types';
 import type { SyncEngine } from './sync';
 
-export type ScanAdapter = Pick<DataAdapter, 'list' | 'stat' | 'readBinary' | 'writeBinary' | 'remove' | 'mkdir' | 'exists'>;
+export type ScanAdapter = Pick<DataAdapter, 'list' | 'stat' | 'readBinary' | 'writeBinary' | 'remove' | 'mkdir' | 'rmdir' | 'exists'>;
 
 const CACHE_KEY = 'scan-cache';
 type Cache = Record<string, { mtime: number; size: number }>;
@@ -51,6 +51,23 @@ export class VaultScanner implements VaultIO {
 		if (await this.adapter.exists(path)) await this.adapter.remove(path);
 		delete (await this.load())[path];
 		await this.save();
+		await this.removeEmptyParents(path);
+	}
+
+	/** Folders are not synced, so drop the ones a remote delete left empty; never a top-level dot folder like `.obsidian`. */
+	private async removeEmptyParents(path: string): Promise<void> {
+		const parts = path.split('/').slice(0, -1);
+		for (let i = parts.length; i >= 1; i--) {
+			const dir = parts.slice(0, i).join('/');
+			if (i === 1 && dir.startsWith('.')) return;
+			try {
+				const { files, folders } = await this.adapter.list(dir);
+				if (files.length || folders.length) return;
+				await this.adapter.rmdir(dir, false);
+			} catch {
+				return; // already gone or not removable: leave it
+			}
+		}
 	}
 
 	/** Lists every file under the vault root, including dot-folders; throws if any folder cannot be listed. */

@@ -69,6 +69,7 @@ class FakeVault {
 		writeBinary: async (p: string, d: ArrayBuffer) => void this.files.set(p, new Uint8Array(d)),
 		remove: async (p: string) => void this.files.delete(p),
 		mkdir: async () => undefined,
+		rmdir: async () => undefined,
 	};
 	on(name: string, cb: unknown) {
 		const set = this.handlers.get(name) ?? new Set();

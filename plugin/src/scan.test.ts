@@ -44,6 +44,9 @@ class MemAdapter {
 	async remove(path: string) {
 		this.files.delete(path);
 	}
+	async rmdir(path: string) {
+		this.dirs.delete(path);
+	}
 	async mkdir(path: string) {
 		this.mkdirs.push(path);
 		this.dirs.add(path);
@@ -132,6 +135,21 @@ test('write creates nested folders and passes mtime', async () => {
 	await s.write('x/y/z.md', enc('z'), 1234);
 	expect(a.mkdirs).toEqual(['x', 'x/y']);
 	expect(a.writes).toEqual([{ path: 'x/y/z.md', mtime: 1234 }]);
+});
+
+test('remove drops folders it left empty, but not a top-level dot folder', async () => {
+	const { a, s } = setup();
+	await s.write('a/b/c.md', enc('c'), 1);
+	await s.write('a/keep/k.md', enc('k'), 1);
+	await s.write('.x/y.md', enc('y'), 1);
+	await s.remove('a/b/c.md');
+	expect(await a.exists('a/b')).toBe(false);
+	expect(await a.exists('a')).toBe(true); // still holds a/keep
+	await s.remove('a/keep/k.md');
+	expect(await a.exists('a/keep')).toBe(false);
+	expect(await a.exists('a')).toBe(false);
+	await s.remove('.x/y.md');
+	expect(await a.exists('.x')).toBe(true);
 });
 
 test('restart with same Store does not reread', async () => {
