@@ -51,6 +51,8 @@ export interface VaultIO {
 	read(path: string): Promise<Uint8Array | null>;
 	write(path: string, data: Uint8Array, mtime: number): Promise<void>;
 	remove(path: string): Promise<void>;
+	/** Paths kept out of sync on this device: their revisions are stored but never written to disk. */
+	ignores?(path: string): boolean;
 }
 
 export type SyncMsg =

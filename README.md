@@ -90,6 +90,20 @@ Then enable "Peer Vault Sync" under Settings > Community plugins. `npm run dev` 
 6. **Set up the first device.** In the plugin settings enter the relay URL and generate a vault key; the plugin shows a QR code and setup link.
 7. **Add other devices.** Open the setup link (or scan the QR code) on the other device. With "require approval" on (default) the new device shows as `pending` in the dashboard; set it to `active` to let it sync.
 
+## Ignore rules
+
+Put gitignore-style patterns in `.syncignore` at the vault root, or edit them under Settings > Peer Vault Sync > Ignore rules. The file itself always syncs, so every device uses the same rules. `.git/` is always ignored.
+
+```
+.DS_Store
+.trash/
+*.tmp
+```
+
+- A file that starts matching a rule stops syncing. Nothing is deleted: copies already on other devices stay where they are.
+- Changes other devices made to an ignored file are kept in history but not written to disk. If you remove the rule later, the local copy is recorded as the newest version.
+- As in git, a file inside an ignored folder cannot be re-included with `!`.
+
 ## Known limitations
 
 - iOS cannot sync in the background; devices sync while Obsidian is in the foreground. The mailbox means the other device need not be online at the same time.
@@ -97,7 +111,7 @@ Then enable "Peer Vault Sync" under Settings > Community plugins. `npm run dev` 
 - When you first merge two existing vaults, a file with the same path and different content and no common history is resolved by the conflict rules; the older content goes to history.
 - History increases local storage use; the retention setting controls it.
 - An open room can be used to consume TURN bandwidth. Keep "require approval" on.
-- Not supported: a real `.git` repository or push to GitHub/GitLab/Gitea, a headless always-on peer, selective sync, live multi-user collaboration, multiple admins or roles, automatic vault key rotation.
+- Not supported: a real `.git` repository or push to GitHub/GitLab/Gitea, a headless always-on peer, per-device selective sync, live multi-user collaboration, multiple admins or roles, automatic vault key rotation.
 - The relay creates an empty placeholder Worker when `setup` sets the first secrets; `deploy` then replaces it. The scripts were written against Wrangler 4.162.0 and have not been run against a real account yet.
 
 ## License
@@ -118,4 +132,5 @@ The dashboard is based on [satnaing/shadcn-admin](https://github.com/satnaing/sh
 6. 開啟 Worker 網址，用管理員 Token 登入後台。
 7. 把 `plugin/` 建置後的 `main.js`、`manifest.json`、`styles.css` 複製到 Vault 的 `.obsidian/plugins/peer-vault-sync/`，在 Obsidian 啟用外掛，填入中繼伺服器網址並產生 Vault 金鑰（會顯示 QR Code 與設定連結）。
 8. 在其他裝置開啟設定連結；新裝置在後台顯示為 `pending`，改為 `active` 後才會同步。
-9. 注意：Vault 金鑰等同存取權；在後台停用裝置不會讓它失去金鑰，裝置遺失時要更換金鑰並重新配對全部裝置。
+9. 不想同步的檔案：在 Vault 根目錄的 `.syncignore` 寫入 gitignore 格式的規則，或在外掛設定的「忽略規則」編輯。此檔案本身一律同步，所有裝置共用同一套規則；符合規則的檔案停止同步，但不會從其他裝置刪除。
+10. 注意：Vault 金鑰等同存取權；在後台停用裝置不會讓它失去金鑰，裝置遺失時要更換金鑰並重新配對全部裝置。

@@ -32,6 +32,19 @@ describe('SyncEngine', () => {
 		expect(b.conflicts).toEqual([]);
 	});
 
+	test('ignored path: revisions are kept but the local file is neither overwritten nor recorded', async () => {
+		const a = node('A');
+		const b = node('B');
+		Object.assign(b.vault, { ignores: (p: string) => p === 'secret.md' });
+		b.vault.files.set('secret.md', enc('mine'));
+		await put(a, 'secret.md', 'theirs');
+		await put(a, 'shared.md', 'ok');
+		await sync(a, b);
+		expect(dec(b.vault.files.get('secret.md'))).toBe('mine');
+		expect(dec(b.vault.files.get('shared.md'))).toBe('ok');
+		expect((await b.store.heads('secret.md')).map((h) => h.deviceId)).toEqual(['A']);
+	});
+
 	test('recordLocal with unchanged content makes no revision', async () => {
 		const a = node('A');
 		await put(a, 'x.md', 'same');

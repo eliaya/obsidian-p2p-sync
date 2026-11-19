@@ -137,6 +137,62 @@ test('write creates nested folders and passes mtime', async () => {
 	expect(a.writes).toEqual([{ path: 'x/y/z.md', mtime: 1234 }]);
 });
 
+test('.syncignore: files and folders are skipped, the rule file itself always syncs', async () => {
+	const { a, s, calls } = setup();
+	a.put('.syncignore', '*.tmp\nfoo/\n.syncignore\n');
+	a.put('a.md', 'a');
+	a.put('x.tmp', 'x');
+	a.put('foo/b.md', 'b');
+	a.put('sub/foo/c.md', 'c');
+	a.put('.git/HEAD', 'h');
+	await s.scanAll();
+	expect(paths(calls)).toEqual(['.syncignore', 'a.md']);
+	expect(await s.onFileEvent('x.tmp')).toBe(0);
+	expect(s.ignores('foo/b.md')).toBe(true);
+	expect(s.ignores('.syncignore')).toBe(false);
+});
+
+test('.syncignore: newly ignored files are dropped without a delete; un-ignoring tracks them again', async () => {
+	const { a, s, calls, meta } = setup();
+	a.put('keep.md', 'k');
+	a.put('foo/b.md', 'b');
+	await s.scanAll();
+	calls.length = 0;
+	a.put('.syncignore', 'foo/\n', 2);
+	expect(await s.scanAll()).toBe(1);
+	expect(calls.map((c) => [c[0], c[1]])).toEqual([['.syncignore', 'foo/\n']]);
+	expect(Object.keys(meta.get('scan-cache') as object).sort()).toEqual(['.syncignore', 'keep.md']);
+	calls.length = 0;
+	a.put('.syncignore', '', 3);
+	await s.scanAll();
+	expect(paths(calls)).toEqual(['.syncignore', 'foo/b.md']);
+});
+
+test('.syncignore: a remote write of the rule file applies at once', async () => {
+	const { s } = setup();
+	await s.write('.syncignore', enc('*.log\n'), 1);
+	expect(s.ignores('a.log')).toBe(true);
+	await s.remove('.syncignore');
+	expect(s.ignores('a.log')).toBe(false);
+});
+
+test('rename into or out of an ignored path', async () => {
+	const { a, s, calls } = setup();
+	a.put('.syncignore', '*.tmp\n');
+	a.put('n.md', 'n');
+	await s.scanAll();
+	calls.length = 0;
+	a.files.set('n.tmp', a.files.get('n.md')!);
+	a.files.delete('n.md');
+	await s.onRename('n.md', 'n.tmp');
+	expect(calls.map((c) => [c[0], c[1], c[3]])).toEqual([['n.md', null, undefined]]);
+	calls.length = 0;
+	a.files.set('m.md', a.files.get('n.tmp')!);
+	a.files.delete('n.tmp');
+	await s.onRename('n.tmp', 'm.md');
+	expect(calls.map((c) => [c[0], c[1], c[3]])).toEqual([['m.md', 'n', undefined]]);
+});
+
 test('remove drops folders it left empty, but not a top-level dot folder', async () => {
 	const { a, s } = setup();
 	await s.write('a/b/c.md', enc('c'), 1);

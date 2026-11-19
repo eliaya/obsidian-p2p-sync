@@ -1,4 +1,5 @@
 import type { DataAdapter } from 'obsidian';
+import ignore, { type Ignore } from 'ignore';
 import type { Store, VaultIO } from './types';
 import type { SyncEngine } from './sync';
 
@@ -7,12 +8,16 @@ export type ScanAdapter = Pick<DataAdapter, 'list' | 'stat' | 'readBinary' | 'wr
 const CACHE_KEY = 'scan-cache';
 type Cache = Record<string, { mtime: number; size: number }>;
 
-const ignored = (path: string) => path.split('/').includes('.git');
+/** gitignore-style rules at the vault root; synced like any file so every device shares them. */
+export const IGNORE_FILE = '.syncignore';
+
+const isGit = (path: string) => path.split('/').includes('.git');
 
 /** Reports disk changes to the engine and applies the engine's writes to disk. */
 export class VaultScanner implements VaultIO {
 	private cache?: Cache;
 	private running?: Promise<number>;
+	private rules: Ignore = ignore();
 
 	constructor(
 		private adapter: ScanAdapter,
@@ -28,6 +33,20 @@ export class VaultScanner implements VaultIO {
 		await this.store.setMeta(CACHE_KEY, await this.load());
 	}
 
+	ignores(path: string): boolean {
+		return isGit(path) || (path !== IGNORE_FILE && this.rules.ignores(path));
+	}
+
+	private async loadRules(): Promise<void> {
+		let text = '';
+		try {
+			if (await this.adapter.exists(IGNORE_FILE)) text = new TextDecoder().decode(await this.adapter.readBinary(IGNORE_FILE));
+		} catch {
+			return; // unreadable now: keep the rules we have
+		}
+		this.rules = ignore().add(text);
+	}
+
 	async read(path: string): Promise<Uint8Array | null> {
 		if (!(await this.adapter.exists(path))) return null;
 		return new Uint8Array(await this.adapter.readBinary(path));
@@ -41,6 +60,7 @@ export class VaultScanner implements VaultIO {
 		}
 		const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 		await this.adapter.writeBinary(path, buf, { mtime });
+		if (path === IGNORE_FILE) await this.loadRules();
 		// Cache what the disk reports, since the filesystem may round mtime.
 		const st = await this.adapter.stat(path);
 		(await this.load())[path] = { mtime: st?.mtime ?? mtime, size: st?.size ?? data.byteLength };
@@ -49,6 +69,7 @@ export class VaultScanner implements VaultIO {
 
 	async remove(path: string): Promise<void> {
 		if (await this.adapter.exists(path)) await this.adapter.remove(path);
+		if (path === IGNORE_FILE) await this.loadRules();
 		delete (await this.load())[path];
 		await this.save();
 		await this.removeEmptyParents(path);
@@ -73,8 +94,9 @@ export class VaultScanner implements VaultIO {
 	/** Lists every file under the vault root, including dot-folders; throws if any folder cannot be listed. */
 	private async listAll(dir = '/'): Promise<string[]> {
 		const { files, folders } = await this.adapter.list(dir);
-		const out = files.filter((f) => !ignored(f));
-		for (const d of folders) if (!ignored(d)) out.push(...(await this.listAll(d)));
+		const out = files.filter((f) => !this.ignores(f));
+		// A folder rule only matches with the trailing slash; as in git, files under an ignored folder cannot be re-included.
+		for (const d of folders) if (!isGit(d) && !this.rules.ignores(d + '/')) out.push(...(await this.listAll(d)));
 		return out;
 	}
 
@@ -102,23 +124,29 @@ export class VaultScanner implements VaultIO {
 	}
 
 	private async doScan(): Promise<number> {
+		await this.loadRules();
 		const cache = await this.load();
 		const seen = new Set(await this.listAll());
 		let n = 0;
+		let dropped = false;
 		for (const path of seen) if (await this.check(path, cache)) n++;
 		for (const path of Object.keys(cache)) {
 			if (seen.has(path)) continue;
-			await this.engine.recordLocal(path, null, Date.now());
+			// Newly ignored: stop tracking it without sending a delete.
+			if (this.ignores(path)) dropped = true;
+			else {
+				await this.engine.recordLocal(path, null, Date.now());
+				n++;
+			}
 			delete cache[path];
-			n++;
 		}
-		if (n) await this.save();
+		if (n || dropped) await this.save();
 		return n;
 	}
 
 	/** A vault event fired for `path`: check only that path. */
 	async onFileEvent(path: string): Promise<number> {
-		if (ignored(path)) return 0;
+		if (this.ignores(path)) return 0;
 		const cache = await this.load();
 		let n = 0;
 		if (await this.adapter.exists(path)) {
@@ -133,8 +161,12 @@ export class VaultScanner implements VaultIO {
 	}
 
 	async onRename(oldPath: string, newPath: string): Promise<void> {
-		if (ignored(newPath)) {
+		if (this.ignores(newPath)) {
 			await this.onFileEvent(oldPath);
+			return;
+		}
+		if (this.ignores(oldPath)) {
+			await this.onFileEvent(newPath);
 			return;
 		}
 		const st = await this.adapter.stat(newPath);

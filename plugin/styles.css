@@ -133,3 +133,8 @@
 .is-mobile .pvs-modal button {
 	min-height: 44px;
 }
+
+.pvs-ignore {
+	width: 100%;
+	font-family: var(--font-monospace);
+}

@@ -296,6 +296,7 @@ export class SyncEngine {
 
 	/** Brings the vault in line with the heads of `path`. Returns false when content is still missing. */
 	private async resolve(path: string): Promise<boolean> {
+		if (this.vault.ignores?.(path)) return true;
 		let heads = await this.store.heads(path);
 		if (!heads.length) return true;
 		for (const h of heads) if (h.blobHash && !(await this.store.hasBlob(h.blobHash))) return false;

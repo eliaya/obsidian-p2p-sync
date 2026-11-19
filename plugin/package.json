@@ -1,6 +1,6 @@
 {
 	"name": "peer-vault-sync",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"description": "Peer-to-peer vault sync for Obsidian",
 	"main": "main.js",
 	"type": "module",
@@ -15,6 +15,7 @@
 	"license": "0-BSD",
 	"dependencies": {
 		"diff-match-patch": "^1.0.5",
+		"ignore": "7.0.14",
 		"qrcode-generator": "^2.0.4"
 	},
 	"devDependencies": {

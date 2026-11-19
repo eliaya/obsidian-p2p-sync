@@ -446,6 +446,10 @@ export default class PeerVaultSync extends Plugin {
 		}).open();
 	}
 
+	rescan(): void {
+		void this.session?.syncNow();
+	}
+
 	private syncNow(): void {
 		if (!this.session) return void new Notice(this.t('notice.notConfigured'));
 		new Notice(this.t('notice.syncStarted'));

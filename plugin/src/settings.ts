@@ -2,6 +2,7 @@
 import { type App, Modal, Notice, PluginSettingTab, Setting, type Plugin } from 'obsidian';
 import qrcode from 'qrcode-generator';
 import { fromBase64Url } from './crypto';
+import { IGNORE_FILE } from './scan';
 import { type Status, type StatusStore, groupFingerprint, statusFragment } from './status';
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
@@ -202,6 +203,8 @@ export interface SettingsHost extends Plugin {
 	languages(): { code: string; name: string }[];
 	refreshLanguages(): Promise<number | null>;
 	obsidianLanguageName(): string;
+	/** Rescans and syncs if sync is running; otherwise does nothing. */
+	rescan(): void;
 }
 
 export class SyncSettingTab extends PluginSettingTab {
@@ -332,6 +335,33 @@ export class SyncSettingTab extends PluginSettingTab {
 				});
 			});
 		el.appendChild(daysError);
+
+		// Ignore rules
+		new Setting(el).setName(t('settings.ignore.heading')).setHeading();
+		new Setting(el).setName(t('settings.ignore.name')).setDesc(t('settings.ignore.desc'));
+		const adapter = this.app.vault.adapter;
+		const rules = el.createEl('textarea', { cls: 'pvs-ignore', attr: { rows: 8, spellcheck: 'false', placeholder: '.DS_Store\n.trash/\n*.tmp' } });
+		rules.disabled = true;
+		void (async () => {
+			try {
+				if (await adapter.exists(IGNORE_FILE)) rules.value = await adapter.read(IGNORE_FILE);
+				rules.disabled = false;
+			} catch (e) {
+				new Notice(t('settings.ignore.failed', { message: String(e) }));
+			}
+		})();
+		new Setting(el).addButton((b) =>
+			b.setButtonText(t('settings.ignore.save')).onClick(async () => {
+				if (rules.disabled) return;
+				try {
+					await adapter.write(IGNORE_FILE, rules.value);
+					new Notice(t('settings.ignore.saved'));
+					host.rescan();
+				} catch (e) {
+					new Notice(t('settings.ignore.failed', { message: String(e) }));
+				}
+			}),
+		);
 
 		// Language
 		new Setting(el).setName(t('settings.language.heading')).setHeading();
