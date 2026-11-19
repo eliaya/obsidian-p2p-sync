@@ -1,8 +1,9 @@
-import { type App, Component, Notice, Platform, Plugin, TFile, getLanguage, requestUrl, setIcon } from 'obsidian';
+import { type App, Component, Platform, Plugin, TFile, getLanguage, requestUrl, setIcon } from 'obsidian';
 import { deriveKeys, generateIdentity, generateVaultKey, sha256Hex } from './src/crypto';
 import { DeletedFileModal, HistoryModal } from './src/history';
 import { BUILTIN, I18n, pickLocale, readCache, refreshServerLocales } from './src/i18n';
 import { Mailbox } from './src/mailbox';
+import { type NotifyPrefs, normalizeNotifyPrefs, notify, setNotifyPrefs } from './src/notify';
 import { type Http, type PeerConnectionCtor, PeerManager, RelayClient, type WebSocketCtor } from './src/peer';
 import { VaultScanner } from './src/scan';
 import {
@@ -29,6 +30,7 @@ const LAST_PRUNE = 'plugin:lastPrune';
 const LS_DB_ID = 'peer-vault-sync:db-id';
 const LS_LOCALE = 'peer-vault-sync:locale';
 const LS_I18N = 'peer-vault-sync:i18n-cache';
+const LS_NOTIFY = 'peer-vault-sync:notify';
 
 interface Identity {
 	privateKey: CryptoKey;
@@ -281,11 +283,12 @@ export default class PeerVaultSync extends Plugin {
 	private statusBar: HTMLElement | null = null;
 	private restartTimer: number | null = null;
 	private conflicts = new Coalescer<Conflict>(3000, (cs) => this.showConflicts(cs));
-	private configWrites = new Coalescer<string>(3000, (ps) => new Notice(this.t('notice.configChanged', { count: ps.length }), 0));
+	private configWrites = new Coalescer<string>(3000, (ps) => notify(this.t('notice.configChanged', { count: ps.length }), 0));
 
 	async onload(): Promise<void> {
 		this.settings = normalizeSettings(await this.loadData());
 		this.i18n.server = readCache(this.app.loadLocalStorage(LS_I18N));
+		setNotifyPrefs(this.notifyPrefs());
 		this.applyLocale();
 		const { t } = this;
 
@@ -315,7 +318,7 @@ export default class PeerVaultSync extends Plugin {
 
 		this.registerObsidianProtocolHandler(SETUP_ACTION, (p) => {
 			const r = parseSetup(p.relay, p.key);
-			if (typeof r === 'string') new Notice(this.t(r));
+			if (typeof r === 'string') notify(this.t(r));
 			else void this.confirmJoin(r);
 		});
 		this.registerEvent(
@@ -332,7 +335,7 @@ export default class PeerVaultSync extends Plugin {
 
 		this.app.workspace.onLayoutReady(() => {
 			this.restart();
-			if (this.status.s.phase === 'unconfigured') new Notice(this.t('notice.notConfigured'));
+			if (this.status.s.phase === 'unconfigured') notify(this.t('notice.notConfigured'));
 			void this.refreshLanguages();
 		});
 	}
@@ -380,7 +383,7 @@ export default class PeerVaultSync extends Plugin {
 			this.status.update((st) => (st.phase = 'stopped'));
 			const { key, vars } = errorOf(e, 'error.start');
 			this.status.error(key, vars);
-			new Notice(this.t(key, vars));
+			notify(this.t(key, vars));
 		});
 	}
 
@@ -412,7 +415,7 @@ export default class PeerVaultSync extends Plugin {
 	private showConflicts(cs: Conflict[]): void {
 		const f = createFragment();
 		for (const line of conflictLines(this.t, cs, this.session?.peerId ?? '')) f.createDiv({ text: line });
-		new Notice(f, 20_000);
+		notify(f, 20_000);
 	}
 
 	private renderIndicator(): void {
@@ -451,15 +454,15 @@ export default class PeerVaultSync extends Plugin {
 	}
 
 	private syncNow(): void {
-		if (!this.session) return void new Notice(this.t('notice.notConfigured'));
-		new Notice(this.t('notice.syncStarted'));
+		if (!this.session) return void notify(this.t('notice.notConfigured'));
+		notify(this.t('notice.syncStarted'));
 		void this.session.syncNow();
 	}
 
 	private running(): Session | null {
 		const s = this.session;
 		if (s?.store && s.scanner) return s;
-		new Notice(this.t('notice.notRunning'));
+		notify(this.t('notice.notRunning'));
 		return null;
 	}
 
@@ -516,14 +519,14 @@ export default class PeerVaultSync extends Plugin {
 		this.settings.vaultKey = generateVaultKey();
 		await this.saveSettings();
 		this.restart();
-		new Notice(t('notice.vaultCreated'));
+		notify(t('notice.vaultCreated'));
 	}
 
 	/** From a pasted code or an obsidian:// link: never applied without the user's confirmation. */
 	async confirmJoin(setup: Setup): Promise<void> {
 		const { t } = this;
 		if (setup.vaultKey === this.settings.vaultKey && setup.relayUrl === normalizeRelayUrl(this.settings.relayUrl))
-			return void new Notice(t('setup.alreadyPaired'));
+			return void notify(t('setup.alreadyPaired'));
 		const body = [t('setup.confirm.relay', { relay: setup.relayUrl }), t('setup.confirm.vault', { vault: this.app.vault.getName() })];
 		if (this.settings.vaultKey && this.settings.vaultKey !== setup.vaultKey) body.push(t('setup.confirm.replaceKey'));
 		const files = this.app.vault.getFiles().length;
@@ -535,7 +538,18 @@ export default class PeerVaultSync extends Plugin {
 		this.settings.vaultKey = setup.vaultKey;
 		await this.saveSettings();
 		this.restart();
-		new Notice(t('setup.joined'));
+		notify(t('setup.joined'));
+	}
+
+	// ---------- notices ----------
+
+	notifyPrefs(): NotifyPrefs {
+		return normalizeNotifyPrefs(this.app.loadLocalStorage(LS_NOTIFY));
+	}
+
+	setNotifyPrefs(p: NotifyPrefs): void {
+		this.app.saveLocalStorage(LS_NOTIFY, p);
+		setNotifyPrefs(p);
 	}
 
 	// ---------- language ----------
@@ -549,7 +563,7 @@ export default class PeerVaultSync extends Plugin {
 		this.app.saveLocalStorage(LS_LOCALE, code || null);
 		this.applyLocale();
 		this.renderIndicator();
-		new Notice(this.t('settings.language.changed'));
+		notify(this.t('settings.language.changed'));
 	}
 
 	languages(): { code: string; name: string }[] {

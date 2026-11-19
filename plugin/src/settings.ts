@@ -1,7 +1,8 @@
 // Shared settings (data.json, synced to every device), the setup code, and the settings tab.
-import { type App, Modal, Notice, PluginSettingTab, Setting, type Plugin } from 'obsidian';
+import { type App, Modal, PluginSettingTab, Setting, type Plugin } from 'obsidian';
 import qrcode from 'qrcode-generator';
 import { fromBase64Url } from './crypto';
+import { NOTIFY_SECONDS_MAX, NOTIFY_SECONDS_MIN, type NotifyMode, type NotifyPrefs, notify } from './notify';
 import { IGNORE_FILE } from './scan';
 import { type Status, type StatusStore, groupFingerprint, statusFragment } from './status';
 
@@ -123,9 +124,9 @@ export function confirmDialog(app: App, o: ConfirmOptions): Promise<boolean> {
 async function copy(t: T, text: string): Promise<void> {
 	try {
 		await navigator.clipboard.writeText(text);
-		new Notice(t('notice.copied'));
+		notify(t('notice.copied'));
 	} catch {
-		new Notice(t('notice.copyFailed'));
+		notify(t('notice.copyFailed'));
 	}
 }
 
@@ -205,6 +206,9 @@ export interface SettingsHost extends Plugin {
 	obsidianLanguageName(): string;
 	/** Rescans and syncs if sync is running; otherwise does nothing. */
 	rescan(): void;
+	/** This device only, like the language. */
+	notifyPrefs(): NotifyPrefs;
+	setNotifyPrefs(p: NotifyPrefs): void;
 }
 
 export class SyncSettingTab extends PluginSettingTab {
@@ -251,7 +255,7 @@ export class SyncSettingTab extends PluginSettingTab {
 			.addButton((b) =>
 				b.setButtonText(t('settings.relay.test')).onClick(async () => {
 					const ok = await host.testRelay(settings.relayUrl);
-					new Notice(t(ok ? 'settings.relay.test.ok' : 'settings.relay.test.fail'));
+					notify(t(ok ? 'settings.relay.test.ok' : 'settings.relay.test.fail'));
 				}),
 			);
 		el.appendChild(relayError);
@@ -276,7 +280,7 @@ export class SyncSettingTab extends PluginSettingTab {
 			.addButton((b) =>
 				b.setButtonText(t('settings.pair.join.button')).onClick(async () => {
 					const r = decodeSetupCode(code);
-					if (typeof r === 'string') return void new Notice(t(r));
+					if (typeof r === 'string') return void notify(t(r));
 					await host.confirmJoin(r);
 					this.display();
 				}),
@@ -347,7 +351,7 @@ export class SyncSettingTab extends PluginSettingTab {
 				if (await adapter.exists(IGNORE_FILE)) rules.value = await adapter.read(IGNORE_FILE);
 				rules.disabled = false;
 			} catch (e) {
-				new Notice(t('settings.ignore.failed', { message: String(e) }));
+				notify(t('settings.ignore.failed', { message: String(e) }));
 			}
 		})();
 		new Setting(el).addButton((b) =>
@@ -355,13 +359,42 @@ export class SyncSettingTab extends PluginSettingTab {
 				if (rules.disabled) return;
 				try {
 					await adapter.write(IGNORE_FILE, rules.value);
-					new Notice(t('settings.ignore.saved'));
+					notify(t('settings.ignore.saved'));
 					host.rescan();
 				} catch (e) {
-					new Notice(t('settings.ignore.failed', { message: String(e) }));
+					notify(t('settings.ignore.failed', { message: String(e) }));
 				}
 			}),
 		);
+
+		// Notices
+		new Setting(el).setName(t('settings.notify.heading')).setHeading();
+		const notifyPrefs = host.notifyPrefs();
+		new Setting(el)
+			.setName(t('settings.notify.name'))
+			.setDesc(t('settings.notify.desc'))
+			.addDropdown((d) => {
+				for (const m of ['show', 'autohide', 'off'] as const) d.addOption(m, t(`settings.notify.${m}`));
+				d.setValue(notifyPrefs.mode).onChange((v) => {
+					host.setNotifyPrefs({ ...notifyPrefs, mode: v as NotifyMode });
+					this.display();
+				});
+			});
+		if (notifyPrefs.mode === 'autohide') {
+			const secondsError = createDiv({ cls: 'pvs-error' });
+			new Setting(el).setName(t('settings.notify.seconds')).addText((x) => {
+				x.inputEl.type = 'number';
+				x.inputEl.min = String(NOTIFY_SECONDS_MIN);
+				x.inputEl.max = String(NOTIFY_SECONDS_MAX);
+				x.setValue(String(notifyPrefs.seconds)).onChange((v) => {
+					const n = Number(v);
+					const ok = Number.isInteger(n) && n >= NOTIFY_SECONDS_MIN && n <= NOTIFY_SECONDS_MAX;
+					secondsError.setText(ok ? '' : t('settings.notify.seconds.invalid', { min: NOTIFY_SECONDS_MIN, max: NOTIFY_SECONDS_MAX }));
+					if (ok) host.setNotifyPrefs({ ...notifyPrefs, seconds: n });
+				});
+			});
+			el.appendChild(secondsError);
+		}
 
 		// Language
 		new Setting(el).setName(t('settings.language.heading')).setHeading();
@@ -379,7 +412,7 @@ export class SyncSettingTab extends PluginSettingTab {
 			.addButton((b) =>
 				b.setButtonText(t('settings.language.refresh')).onClick(async () => {
 					const n = await host.refreshLanguages();
-					new Notice(n === null ? t('settings.language.refresh.fail') : t('settings.language.refresh.ok', { count: n }));
+					notify(n === null ? t('settings.language.refresh.fail') : t('settings.language.refresh.ok', { count: n }));
 					this.display();
 				}),
 			);

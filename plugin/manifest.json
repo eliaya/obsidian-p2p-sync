@@ -1,7 +1,7 @@
 {
 	"id": "peer-vault-sync",
 	"name": "Peer Vault Sync",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"minAppVersion": "1.8.7",
 	"description": "Peer-to-peer vault sync with an optional relay.",
 	"author": "EL10T10",

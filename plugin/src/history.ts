@@ -1,6 +1,7 @@
 // File history: the revision list, a line diff against the current file, restore, and a picker for deleted files.
 import DiffMatchPatch from 'diff-match-patch';
-import { type App, FuzzySuggestModal, Modal, Notice, Setting } from 'obsidian';
+import { type App, FuzzySuggestModal, Modal, Setting } from 'obsidian';
+import { notify } from './notify';
 import { confirmDialog } from './settings';
 import { shortId } from './status';
 import type { Revision, Store } from './types';
@@ -195,12 +196,12 @@ export class HistoryModal extends Modal {
 						if (!ok) return;
 						try {
 							await this.host.restore(this.path, data);
-							new Notice(t('history.restore.done', { path: this.path }));
+							notify(t('history.restore.done', { path: this.path }));
 							this.selected = null;
 							el.empty();
 							await this.load();
 						} catch (e) {
-							new Notice(t('history.restore.failed', { message: e instanceof Error ? e.message : String(e) }));
+							notify(t('history.restore.failed', { message: e instanceof Error ? e.message : String(e) }));
 						}
 					}),
 			);
