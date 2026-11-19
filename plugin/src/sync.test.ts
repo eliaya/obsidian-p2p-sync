@@ -45,6 +45,19 @@ describe('SyncEngine', () => {
 		expect((await b.store.heads('secret.md')).map((h) => h.deviceId)).toEqual(['A']);
 	});
 
+	test('ignored path: arrives once the rule is removed, with no new revision', async () => {
+		const a = node('A');
+		const b = node('B');
+		let ignoring = true;
+		Object.assign(b.vault, { ignores: (p: string) => ignoring && p === 'secret.md' });
+		await put(a, 'secret.md', 'theirs');
+		await sync(a, b);
+		expect(b.vault.files.has('secret.md')).toBe(false);
+		ignoring = false;
+		await sync(a, b);
+		expect(dec(b.vault.files.get('secret.md'))).toBe('theirs');
+	});
+
 	test('recordLocal with unchanged content makes no revision', async () => {
 		const a = node('A');
 		await put(a, 'x.md', 'same');

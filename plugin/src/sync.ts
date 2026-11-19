@@ -294,9 +294,9 @@ export class SyncEngine {
 		await this.store.setMeta(DIRTY, left);
 	}
 
-	/** Brings the vault in line with the heads of `path`. Returns false when content is still missing. */
+	/** Brings the vault in line with the heads of `path`. Returns false when content is still missing or the path is ignored. */
 	private async resolve(path: string): Promise<boolean> {
-		if (this.vault.ignores?.(path)) return true;
+		if (this.vault.ignores?.(path)) return false; // stays pending, so it is written once the rule is removed
 		let heads = await this.store.heads(path);
 		if (!heads.length) return true;
 		for (const h of heads) if (h.blobHash && !(await this.store.hasBlob(h.blobHash))) return false;

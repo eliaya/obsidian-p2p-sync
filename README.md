@@ -101,7 +101,7 @@ Put gitignore-style patterns in `.syncignore` at the vault root, or edit them un
 ```
 
 - A file that starts matching a rule stops syncing. Nothing is deleted: copies already on other devices stay where they are.
-- Changes other devices made to an ignored file are kept in history but not written to disk. If you remove the rule later, the local copy is recorded as the newest version.
+- Changes other devices made to an ignored file are kept in history but not written to disk. If you remove the rule later, they are written at the next sync; a local copy that differs is merged with them by the usual conflict rules.
 - As in git, a file inside an ignored folder cannot be re-included with `!`.
 
 ## Known limitations
