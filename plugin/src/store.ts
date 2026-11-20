@@ -8,12 +8,12 @@ const VV = '\0vector'; // reserved meta key, not reachable by sane getMeta calle
 const req = <T>(r: IDBRequest<T>) =>
 	new Promise<T>((res, rej) => {
 		r.onsuccess = () => res(r.result);
-		r.onerror = () => rej(r.error);
+		r.onerror = () => rej(r.error ?? new Error('IndexedDB request failed'));
 	});
 const done = (tx: IDBTransaction) =>
 	new Promise<void>((res, rej) => {
 		tx.oncomplete = () => res();
-		tx.onerror = tx.onabort = () => rej(tx.error);
+		tx.onerror = tx.onabort = () => rej(tx.error ?? new Error('IndexedDB transaction aborted'));
 	});
 
 export class IdbStore implements Store {

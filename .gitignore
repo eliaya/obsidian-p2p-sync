@@ -7,3 +7,4 @@ plugin/main.js
 relay/public/
 relay/web/node_modules/
 test-vaults/
+relay/worker-configuration.d.ts

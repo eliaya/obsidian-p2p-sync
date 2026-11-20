@@ -454,7 +454,7 @@ export class PeerManager {
 		ws.onmessage = (ev) => {
 			let m: { t?: string; peers?: string[]; peer?: string; from?: string; data?: string };
 			try {
-				m = JSON.parse(String(ev.data));
+				m = JSON.parse(String(ev.data)) as typeof m;
 			} catch {
 				return;
 			}

@@ -39,7 +39,7 @@ There is no telemetry, analytics, or any other third-party request. Nothing is s
 
 - Node.js 22.12 or newer (developed on 26.12). Needed for `relay`, `relay/web` and `plugin`.
 - A Cloudflare account with Workers, D1 and R2 enabled. R2 may require a payment method on the account (not verified; check in the dashboard).
-- Obsidian 1.8.7 or newer (`minAppVersion` in `plugin/manifest.json`).
+- Obsidian 1.8.7 or newer (`minAppVersion` in `manifest.json`).
 
 ## Local development
 
@@ -67,7 +67,7 @@ cd plugin
 npm run build          # produces main.js
 # install into a vault:
 mkdir -p "<vault>/.obsidian/plugins/peer-vault-sync"
-cp main.js manifest.json styles.css "<vault>/.obsidian/plugins/peer-vault-sync/"
+cp main.js ../manifest.json styles.css "<vault>/.obsidian/plugins/peer-vault-sync/"
 ```
 Then enable "Peer Vault Sync" under Settings > Community plugins. `npm run dev` rebuilds on change, `npm test` runs the tests.
 
@@ -112,11 +112,11 @@ Put gitignore-style patterns in `.syncignore` at the vault root, or edit them un
 - History increases local storage use; the retention setting controls it.
 - An open room can be used to consume TURN bandwidth. Keep "require approval" on.
 - Not supported: a real `.git` repository or push to GitHub/GitLab/Gitea, a headless always-on peer, per-device selective sync, live multi-user collaboration, multiple admins or roles, automatic vault key rotation.
-- The relay creates an empty placeholder Worker when `setup` sets the first secrets; `deploy` then replaces it. The scripts were written against Wrangler 4.162.0 and have not been run against a real account yet.
+- The relay creates an empty placeholder Worker when `setup` sets the first secrets; `deploy` then replaces it. The scripts were written against Wrangler 4.162.0.
 
 ## License
 
-License: TBD.
+GPL-3.0-only. See `LICENSE`.
 
 The dashboard is based on [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin) (MIT); see `relay/web/NOTICE.md`.
 
@@ -130,7 +130,7 @@ The dashboard is based on [satnaing/shadcn-admin](https://github.com/satnaing/sh
 4. `cd relay`，先 `npm run setup -- --dry-run` 看動作清單，再 `npm run setup`。把畫面上顯示的管理員 Token 存進密碼管理器（只顯示一次）。`DB_ENC_KEY` 已存在時不會被覆寫；它遺失就無法解密資料庫的加密欄位。
 5. `npm run deploy`，完成後會檢查 `/health`。
 6. 開啟 Worker 網址，用管理員 Token 登入後台。
-7. 把 `plugin/` 建置後的 `main.js`、`manifest.json`、`styles.css` 複製到 Vault 的 `.obsidian/plugins/peer-vault-sync/`，在 Obsidian 啟用外掛，填入中繼伺服器網址並產生 Vault 金鑰（會顯示 QR Code 與設定連結）。
+7. 把 `plugin/` 建置後的 `main.js`、`styles.css` 與根目錄的 `manifest.json` 複製到 Vault 的 `.obsidian/plugins/peer-vault-sync/`，在 Obsidian 啟用外掛，填入中繼伺服器網址並產生 Vault 金鑰（會顯示 QR Code 與設定連結）。
 8. 在其他裝置開啟設定連結；新裝置在後台顯示為 `pending`，改為 `active` 後才會同步。
 9. 不想同步的檔案：在 Vault 根目錄的 `.syncignore` 寫入 gitignore 格式的規則，或在外掛設定的「忽略規則」編輯。此檔案本身一律同步，所有裝置共用同一套規則；符合規則的檔案停止同步，但不會從其他裝置刪除。
 10. 注意：Vault 金鑰等同存取權；在後台停用裝置不會讓它失去金鑰，裝置遺失時要更換金鑰並重新配對全部裝置。

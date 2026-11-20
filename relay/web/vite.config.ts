@@ -6,7 +6,8 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 
 export default defineConfig({
   plugins: [
-    tanstackRouter({ target: 'react', autoCodeSplitting: true }),
+    // No blanket eslint-disable in the generated route tree: the Obsidian plugin review rejects it.
+    tanstackRouter({ target: 'react', autoCodeSplitting: true, routeTreeFileHeader: ['// @ts-nocheck', '// noinspection JSUnusedGlobalSymbols'] }),
     react(),
     tailwindcss(),
   ],

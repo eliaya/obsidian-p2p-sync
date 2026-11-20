@@ -1,6 +1,6 @@
 {
 	"name": "peer-vault-sync",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Peer-to-peer vault sync for Obsidian",
 	"main": "main.js",
 	"type": "module",
@@ -12,7 +12,7 @@
 		"e2e:build": "node e2e/build.mjs",
 		"e2e": "node e2e/run.mjs"
 	},
-	"license": "0-BSD",
+	"license": "GPL-3.0-only",
 	"dependencies": {
 		"diff-match-patch": "^1.0.5",
 		"ignore": "7.0.14",
