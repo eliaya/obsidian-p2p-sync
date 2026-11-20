@@ -84,7 +84,7 @@
    npm run setup -- --dry-run   # lists what it would do, changes nothing
    npm run setup                # asks for confirmation; --yes skips it
    ```
-   它會建立 D1 資料庫與 R2 儲存貯體（或沿用既有的），將 D1 的 id 寫入 `wrangler.jsonc`，加入 45 天的 R2 生命週期規則，並設定 Worker 密鑰 `DB_ENC_KEY`（若已存在則絕不覆寫）與 `ADMIN_TOKEN_HASH`。**它只會顯示一次管理員權杖：請存放在密碼管理工具中。** `--rotate-admin-token` 可將其替換。
+   它會建立 D1 資料庫與 R2 儲存貯體（或沿用既有的），將 D1 的 id 寫入 `relay/wrangler.local.jsonc`（不受 git 追蹤，因此 id 不會進入版本庫；`npm run deploy:local` 使用此檔案），加入 45 天的 R2 生命週期規則，並設定 Worker 密鑰 `DB_ENC_KEY`（若已存在則絕不覆寫）與 `ADMIN_TOKEN_HASH`。**它只會顯示一次管理員權杖：請存放在密碼管理工具中。** `--rotate-admin-token` 可將其替換。
 4. **部署：**
    ```sh
    npm run deploy:local              # build, typecheck, test, migrate, deploy, check /health

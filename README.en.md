@@ -84,7 +84,7 @@ Needs Node.js 22.12 or newer and a clone of this repository.
    npm run setup -- --dry-run   # lists what it would do, changes nothing
    npm run setup                # asks for confirmation; --yes skips it
    ```
-   It creates the D1 database and the R2 bucket (or reuses them), writes the D1 id into `wrangler.jsonc`, adds the 45-day R2 lifecycle rule, and sets the Worker secrets `DB_ENC_KEY` (never overwritten if it exists) and `ADMIN_TOKEN_HASH`. **It prints the admin token once: save it in a password manager.** `--rotate-admin-token` replaces it.
+   It creates the D1 database and the R2 bucket (or reuses them), writes the D1 id into `relay/wrangler.local.jsonc` (git-ignored, so the id never reaches the repository; `npm run deploy:local` uses this file), adds the 45-day R2 lifecycle rule, and sets the Worker secrets `DB_ENC_KEY` (never overwritten if it exists) and `ADMIN_TOKEN_HASH`. **It prints the admin token once: save it in a password manager.** `--rotate-admin-token` replaces it.
 4. **Deploy:**
    ```sh
    npm run deploy:local              # build, typecheck, test, migrate, deploy, check /health

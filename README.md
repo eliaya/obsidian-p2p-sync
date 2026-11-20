@@ -84,7 +84,7 @@ Node.js 22.12 以降と、このリポジトリのクローンが必要です。
    npm run setup -- --dry-run   # lists what it would do, changes nothing
    npm run setup                # asks for confirmation; --yes skips it
    ```
-   D1 データベースと R2 バケットを作成（または再利用）し、D1 の id を `wrangler.jsonc` に書き込み、45 日の R2 ライフサイクルルールを追加し、Worker のシークレット `DB_ENC_KEY`（すでに存在する場合は上書きされません）と `ADMIN_TOKEN_HASH` を設定します。**admin token は一度だけ表示されます。パスワードマネージャーに保存してください。** `--rotate-admin-token` を指定すると、これを置き換えます。
+   D1 データベースと R2 バケットを作成（または再利用）し、D1 の id を `relay/wrangler.local.jsonc`（git の追跡対象外のため、id がリポジトリに入ることはありません。`npm run deploy:local` はこのファイルを使います）に書き込み、45 日の R2 ライフサイクルルールを追加し、Worker のシークレット `DB_ENC_KEY`（すでに存在する場合は上書きされません）と `ADMIN_TOKEN_HASH` を設定します。**admin token は一度だけ表示されます。パスワードマネージャーに保存してください。** `--rotate-admin-token` を指定すると、これを置き換えます。
 4. **デプロイ:**
    ```sh
    npm run deploy:local              # build, typecheck, test, migrate, deploy, check /health

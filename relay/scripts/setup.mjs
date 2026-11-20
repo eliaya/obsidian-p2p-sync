@@ -11,6 +11,8 @@ import assert from 'node:assert/strict'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CONFIG = join(ROOT, 'wrangler.jsonc')
+// The real database id stays out of git: wrangler.jsonc keeps the placeholder, this git-ignored copy has the id.
+const LOCAL_CONFIG = join(ROOT, 'wrangler.local.jsonc')
 const LIFECYCLE_RULE = 'expire-mailbox-45d'
 const EXPIRE_DAYS = 45
 const PLACEHOLDER_ID = '00000000-0000-0000-0000-000000000000'
@@ -126,7 +128,7 @@ async function main() {
 	const worker = cfg.name
 
 	const plan = [
-		`D1: use database "${db}" if it exists, else create it; write its id into wrangler.jsonc`,
+		`D1: use database "${db}" if it exists, else create it; write its id into wrangler.local.jsonc (git-ignored)`,
 		`R2: use bucket "${bucket}" if it exists, else create it`,
 		`R2: lifecycle rule "${LIFECYCLE_RULE}" (delete objects ${EXPIRE_DAYS} days after creation) unless already present`,
 		`Secret DB_ENC_KEY on Worker "${worker}": generate 32 random bytes (base64) ONLY if not already set; never overwritten`,
@@ -168,10 +170,10 @@ async function main() {
 	} else done.push(`D1 database "${db}" already exists`)
 	const dbId = found?.uuid ?? found?.id
 	if (!dbId) fail('D1 database not found after creation (is the listing missing a uuid field?).', done)
-	const text = readFileSync(CONFIG, 'utf8')
-	const patched = patchDatabaseId(text, dbId)
-	if (patched !== text) writeFileSync(CONFIG, patched)
-	done.push(`wrangler.jsonc database_id ${patched !== text ? 'updated' : 'already correct'}`)
+	const patched = patchDatabaseId(readFileSync(CONFIG, 'utf8'), dbId)
+	const changed = !existsSync(LOCAL_CONFIG) || readFileSync(LOCAL_CONFIG, 'utf8') !== patched
+	if (changed) writeFileSync(LOCAL_CONFIG, patched)
+	done.push(`wrangler.local.jsonc ${changed ? 'written' : 'already correct'}`)
 	console.log(done.at(-2) + '; ' + done.at(-1))
 
 	// 2. R2

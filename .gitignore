@@ -8,3 +8,4 @@ relay/public/
 relay/web/node_modules/
 test-vaults/
 relay/worker-configuration.d.ts
+relay/wrangler.local.jsonc
