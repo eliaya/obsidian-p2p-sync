@@ -147,7 +147,7 @@ Setting ranges: `max_peers_per_room` 2..32, `mailbox_ttl_days` 1..365, `mailbox_
 
 ## i18n
 
-Built-in languages are `en` (source) and `zh-TW`, shipped as JSON in `locales/admin/*.json` and `locales/plugin/*.json` and bundled into the dashboard and the plugin. Further languages, and overrides of built-in strings, are added in the dashboard and stored in D1 table `translations` (`locale` PK, `name`, `data` JSON text, `updated_at`). UI strings are public, so this table is not encrypted.
+Built-in languages are `en` (source) and `zh-TW`, shipped as JSON in `relay/locales/admin/*.json` and `relay/locales/plugin/*.json` and bundled into the dashboard and the plugin. Further languages, and overrides of built-in strings, are added in the dashboard and stored in D1 table `translations` (`locale` PK, `name`, `data` JSON text, `updated_at`). UI strings are public, so this table is not encrypted.
 
 | Route | Auth | Result |
 |---|---|---|

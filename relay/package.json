@@ -10,7 +10,9 @@
 		"typecheck": "wrangler types && tsc --noEmit",
 		"build:web": "npm --prefix web run build",
 		"setup": "node scripts/setup.mjs",
-		"deploy": "node scripts/deploy.mjs"
+		"build": "npm --prefix web ci && npm --prefix web run build",
+		"deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy",
+		"deploy:local": "node scripts/deploy.mjs"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-plugin": "^1.8.2",
@@ -18,5 +20,15 @@
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.12",
 		"wrangler": "^4.162.0"
+	},
+	"cloudflare": {
+		"bindings": {
+			"DB_ENC_KEY": {
+				"description": "Encrypts sensitive columns in D1. 32 random bytes, base64. Generate both secrets at once with `node -e \"const c=require('crypto'),t=c.randomBytes(32).toString('base64url');console.log('admin token:',t);console.log('ADMIN_TOKEN_HASH:',c.createHash('sha256').update(t).digest('hex'));console.log('DB_ENC_KEY:',c.randomBytes(32).toString('base64'))\"`. Keep a copy: if it is lost, the encrypted columns cannot be read."
+			},
+			"ADMIN_TOKEN_HASH": {
+				"description": "SHA-256 (hex) of the token you will use to sign in to the dashboard. Use the value printed by the same command, and store the **admin token** itself in your password manager."
+			}
+		}
 	}
 }

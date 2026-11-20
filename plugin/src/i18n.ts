@@ -1,6 +1,6 @@
 // Tiny i18n: flat key -> string tables, `{name}` substitution, fallback to en. Strings are plain text only.
-import en from '../../locales/plugin/en.json';
-import zhTW from '../../locales/plugin/zh-TW.json';
+import en from '../../relay/locales/plugin/en.json';
+import zhTW from '../../relay/locales/plugin/zh-TW.json';
 
 export type Dict = Record<string, string>;
 export const BUILTIN: Record<string, Dict> = { en, 'zh-TW': zhTW };

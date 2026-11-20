@@ -217,7 +217,7 @@ async function main() {
 	if (adminToken) {
 		console.log(`\n==== ADMIN TOKEN (shown once; not stored anywhere) ====\n${adminToken}\n======================================================\nSave it in your password manager now. You need it to log in to the dashboard.`)
 	}
-	console.log('\nSetup finished. Next: npm run deploy')
+	console.log('\nSetup finished. Next: npm run deploy:local')
 }
 
 function fail(msg, done) {

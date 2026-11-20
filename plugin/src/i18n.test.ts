@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import en from '../../locales/plugin/en.json';
-import zhTW from '../../locales/plugin/zh-TW.json';
+import en from '../../relay/locales/plugin/en.json';
+import zhTW from '../../relay/locales/plugin/zh-TW.json';
 import { I18n, interpolate, pickLocale, readCache, refreshServerLocales, type ServerCache } from './i18n';
 
 test('en and zh-TW have exactly the same keys, none empty', () => {

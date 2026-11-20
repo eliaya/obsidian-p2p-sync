@@ -60,7 +60,7 @@ step('Apply remote D1 migrations', 'npx', ['--no-install', 'wrangler', 'd1', 'mi
 const out = step('Deploy', 'npx', ['--no-install', 'wrangler', 'deploy'])
 
 const url = (urlArg ?? out.match(/https:\/\/[^\s/]+\.workers\.dev/)?.[0] ?? '').replace(/\/$/, '')
-if (!url) die('Deployed, but no workers.dev URL found in the output (custom route or workers.dev disabled?). Re-run the check with: npm run deploy -- --url https://YOUR-HOST (this redeploys) or curl <url>/health yourself.')
+if (!url) die('Deployed, but no workers.dev URL found in the output (custom route or workers.dev disabled?). Re-run the check with: npm run deploy:local -- --url https://YOUR-HOST (this redeploys) or curl <url>/health yourself.')
 
 console.log(`\n==> Health check ${url}/health`)
 let status = 'no response'
