@@ -6,7 +6,7 @@ import { dec, MemStore, node, put, sync } from './sync.testkit';
 
 const ROOM = '0123456789abcdef0123456789abcdef';
 
-/** In-memory relay following docs/protocol.md (Mailbox) and relay/src/mailbox.ts, reached through `http`. */
+/** In-memory relay following relay/src/mailbox.ts, reached through `http`. */
 class FakeRelay {
 	status = new Map<string, 'active' | 'pending' | 'revoked'>();
 	bundles: { id: string; sender: string; createdAt: number; data: Uint8Array }[] = [];

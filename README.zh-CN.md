@@ -15,7 +15,6 @@
 
 - `plugin/`：Obsidian 插件（`peer-vault-sync`）。
 - `relay/`：Worker（Durable Object 房间、D1、R2）、位于 `relay/web/` 的管理面板，以及位于 `relay/locales/` 的界面文本。
-- `docs/protocol.md`：插件与中继服务之间的约定。
 
 ## 功能
 

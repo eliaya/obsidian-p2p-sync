@@ -1,5 +1,5 @@
 // WebRTC transport and relay client. Platform objects (WebSocket, RTCPeerConnection, HTTP) are injected
-// so this runs unchanged on Electron, the iOS WebView and in Node tests. Wire formats: docs/protocol.md.
+// so this runs unchanged on Electron, the iOS WebView and in Node tests.
 import { decrypt, encrypt, fromBase64Url, signRequest, toBase64Url } from './crypto';
 import type { SyncEngine } from './sync';
 import type { Channel, SyncMsg } from './types';

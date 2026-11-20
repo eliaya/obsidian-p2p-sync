@@ -15,7 +15,6 @@ Sync a whole Obsidian vault between your own devices: notes, attachments, and th
 
 - `plugin/`: the Obsidian plugin (`peer-vault-sync`).
 - `relay/`: the Worker (Durable Object rooms, D1, R2), the admin dashboard in `relay/web/`, and the UI strings in `relay/locales/`.
-- `docs/protocol.md`: the contract between the plugin and the relay.
 
 ## Features
 

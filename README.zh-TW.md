@@ -15,7 +15,6 @@
 
 - `plugin/`：Obsidian 外掛（`peer-vault-sync`）。
 - `relay/`：Worker（Durable Object 房間、D1、R2）、位於 `relay/web/` 的管理介面，以及位於 `relay/locales/` 的介面字串。
-- `docs/protocol.md`：外掛與中繼伺服器之間的通訊規範。
 
 ## 功能
 

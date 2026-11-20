@@ -1,4 +1,4 @@
-// Shared contracts between store, sync, merge, peer and mailbox. See docs/protocol.md.
+// Shared contracts between store, sync, merge, peer and mailbox.
 
 /** One change to one file. id is `${deviceId}:${seq}`. */
 export interface Revision {

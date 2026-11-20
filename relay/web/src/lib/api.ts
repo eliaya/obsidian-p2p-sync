@@ -58,7 +58,7 @@ export const queryClient = new QueryClient({
   },
 })
 
-// ---- API shapes (docs/protocol.md "Admin API") ----
+// ---- API shapes (relay/src/admin.ts) ----
 
 export type PeerStatus = 'pending' | 'active' | 'revoked'
 

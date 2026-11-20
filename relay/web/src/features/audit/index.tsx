@@ -13,7 +13,7 @@ import { EmptyState, ErrorState, LoadingRows } from '@/components/states'
 
 const route = getRouteApi('/_authenticated/audit')
 
-// docs/protocol.md "Audit events", plus i18n_change from the i18n section.
+// Audit events written by relay/src, plus i18n_change.
 export const EVENTS = [
   'join',
   'leave',

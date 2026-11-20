@@ -1,4 +1,4 @@
-// WebCrypto only (runs on iOS). Parameters per docs/protocol.md.
+// WebCrypto only (runs on iOS).
 const enc = new TextEncoder();
 const subtle = crypto.subtle;
 

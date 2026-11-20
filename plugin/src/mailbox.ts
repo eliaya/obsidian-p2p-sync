@@ -1,4 +1,4 @@
-// Encrypted mailbox for peers that are not connected. Payload format: docs/protocol.md "Mailbox payload".
+// Encrypted mailbox for peers that are not connected.
 import { decrypt, encrypt } from './crypto';
 import { type LinkState, pack, type RelayClient, unpack } from './peer';
 import type { SyncEngine } from './sync';

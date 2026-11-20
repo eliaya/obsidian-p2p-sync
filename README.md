@@ -15,7 +15,6 @@
 
 - `plugin/`: Obsidian プラグイン（`peer-vault-sync`）。
 - `relay/`: Worker（Durable Object のルーム、D1、R2）、`relay/web/` にある管理ダッシュボード、および `relay/locales/` にある UI 文字列。
-- `docs/protocol.md`: プラグインとリレーの間の取り決め。
 
 ## 機能
 
